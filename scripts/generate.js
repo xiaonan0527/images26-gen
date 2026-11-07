@@ -2,7 +2,7 @@
 /**
  * GPT-Image-2.6-Ext 图片生成脚本
  * 使用 gpt-image-2.6-ext 模型，通过 version 参数选择 flare (快速出图) 或 sunburst (构图/编辑精度优先)
- * 支持 png / jpeg / webp / svg / gif 输出，目前仅开放 1k 分辨率。
+ * 支持 png / jpeg / webp / gif 输出（svg 上游暂不支持），支持 1k / 2k / 4k 分辨率。
  * 提交生成任务 → 轮询任务状态 → 下载文件到本地
  */
 
@@ -19,9 +19,10 @@ const MODEL = 'gpt-image-2.6-ext';
 const VALID_VERSIONS = ['flare', 'sunburst'];
 const VALID_QUALITIES = ['low', 'medium', 'high', 'xhigh', 'max', 'auto'];
 const VALID_COMPLEXITIES = ['low', 'medium', 'high'];
-// 2.6-ext 目前仅开放 1k；2k / 4k 上游返回 403 model_price_not_configured
-const VALID_RESOLUTIONS = ['1k'];
+const VALID_RESOLUTIONS = ['1k', '2k', '4k'];
 const VALID_OUTPUT_FORMATS = ['png', 'jpeg', 'jpg', 'webp', 'svg', 'gif'];
+// 上游文档目前标注"暂不支持 SVG 输出"。上游开放后改为 true 即可，服务端同步放行。
+const SVG_SUPPORTED = false;
 // 2.6-ext 只接受 auto 和这 10 种比例，不接受像素尺寸，也不接受 2:1 / 3:1 / 9:21 等
 const VALID_SIZES = ['auto', '1:1', '3:2', '2:3', '4:3', '3:4', '5:4', '4:5', '16:9', '9:16', '21:9'];
 const MAX_REFERENCE_IMAGES = 16;
@@ -244,9 +245,9 @@ function printUsage() {
   console.error('  --size <ratio>           比例 (默认: 1:1)');
   console.error('                           可选: auto, 1:1, 3:2, 2:3, 4:3, 3:4, 5:4, 4:5, 16:9, 9:16, 21:9');
   console.error('                           不支持像素尺寸；GIF 会忽略该参数');
-  console.error('  --resolution <res>       分辨率 (默认: 1k)  目前仅支持 1k');
-  console.error('  --output-format <fmt>    输出格式 (默认: png)  可选: png, jpeg, webp, svg, gif');
-  console.error('                           svg / gif 仅支持文生图，不能带 --image-url');
+  console.error('  --resolution <res>       分辨率 (默认: 1k)  可选: 1k, 2k, 4k；2k/4k 时参考图不能是 GIF/BMP');
+  console.error('  --output-format <fmt>    输出格式 (默认: png)  可选: png, jpeg, webp, gif（svg 上游暂不支持）');
+  console.error('                           gif 仅支持文生图，不能带 --image-url');
   console.error('  --svg-model <model>      SVG 输出时编写 SVG 的文本模型 (可选, 如 gpt-4.1-mini)');
   console.error('  --svg-reasoning <effort> SVG 推理档位 (可选: none, minimal, low, medium, high, xhigh, max)');
   console.error('  --image-url <path|url>   参考图 (可多次指定, 最多 16 张, 每张 ≤ 20MB)');
@@ -308,10 +309,23 @@ function parseArgs(argv) {
     fail(`不支持的复杂度 "${parsed.complexity}"，可选: ${VALID_COMPLEXITIES.join(', ')}`);
   }
   if (!VALID_RESOLUTIONS.includes(parsed.resolution)) {
-    fail(`gpt-image-2.6-ext 目前仅支持 1k 分辨率（收到 "${parsed.resolution}"）。需要 2k / 4k 请使用 gpt-image-2.5-ext（images25-gen）`);
+    fail(`不支持的分辨率 "${parsed.resolution}"，可选: ${VALID_RESOLUTIONS.join(', ')}`);
   }
   if (!VALID_OUTPUT_FORMATS.includes(parsed.outputFormat)) {
-    fail(`不支持的输出格式 "${parsed.outputFormat}"，可选: png, jpeg, webp, svg, gif`);
+    fail(`不支持的输出格式 "${parsed.outputFormat}"，可选: png, jpeg, webp, gif`);
+  }
+  if (parsed.outputFormat === 'svg' && !SVG_SUPPORTED) {
+    fail('gpt-image-2.6-ext 上游暂不支持 SVG 输出，请改用 png / jpeg / webp / gif。需要透明背景的 Logo / 图标请改用 gpt-image-2.5-ext（images25-gen，--background transparent）');
+  }
+  // 2k / 4k 时上游不接受 GIF / BMP 参考图；URL 看路径扩展名，本地文件看文件扩展名
+  if (parsed.resolution !== '1k') {
+    for (const ref of parsed.imageUrls) {
+      let refPath = String(ref);
+      try { refPath = new URL(refPath).pathname; } catch (_) { /* 本地路径，直接用 */ }
+      if (/\.(gif|bmp)$/i.test(refPath)) {
+        fail(`resolution=${parsed.resolution} 时参考图不能是 GIF / BMP（${ref}），请改用 PNG / JPEG / WebP，或改回 --resolution 1k`);
+      }
+    }
   }
   if (!VALID_SIZES.includes(parsed.size)) {
     fail(`不支持的 size "${parsed.size}"。gpt-image-2.6-ext 仅支持: ${VALID_SIZES.join(', ')}（不支持像素尺寸、2:1、1:2、3:1、1:3、9:21）`);

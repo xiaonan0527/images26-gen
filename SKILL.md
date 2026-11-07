@@ -1,24 +1,25 @@
 ---
 name: gpt-image-26-ext
-description: 使用 Nange AI GPT-Image-2.6-Ext API 生成图片，通过 version 参数选择 Flare（快速出图）或 Sunburst（构图与编辑精度优先），6 种质量档位，支持文生图、图生图，以及 SVG 矢量图和 GIF 动图输出，按分辨率固定价计费（目前仅开放 1K）。当用户说"生图"、"画图"、"生成图片"、"gpt-image"、"Image2.6 生图"、"用 2.6 画"、"帮我画"、"用 gpt 画"、"用 flare 画"、"用 sunburst 编辑"、"生成 SVG"、"矢量图"、"做个 GIF 动图"、"把这张图改成"、"参考这张图"等涉及 AI 图片生成、矢量图、动图或图片编辑的请求时触发此技能。首次使用会引导配置 API Key，后续直接生成。
+description: 使用 Nange AI GPT-Image-2.6-Ext API 生成图片，通过 version 参数选择 Flare（快速出图）或 Sunburst（构图与编辑精度优先），6 种质量档位，支持文生图、图生图，以及 GIF 动图输出（SVG 上游暂不支持），支持 1K / 2K / 4K，按分辨率固定价计费。当用户说"生图"、"画图"、"生成图片"、"gpt-image"、"Image2.6 生图"、"用 2.6 画"、"帮我画"、"用 gpt 画"、"用 flare 画"、"用 sunburst 编辑"、"生成 SVG"、"矢量图"、"做个 GIF 动图"、"把这张图改成"、"参考这张图"等涉及 AI 图片生成、矢量图、动图或图片编辑的请求时触发此技能。首次使用会引导配置 API Key，后续直接生成。
 ---
 
 # GPT-Image-2.6-Ext 图片生成
 
-通过 Nange AI 的 GPT-Image-2.6-Ext API 生成图片。使用统一模型 `gpt-image-2.6-ext`，通过 `version` 参数选择 Flare（快速出图）或 Sunburst（构图与编辑精度优先）。支持文生图、图生图，并新增 **SVG 矢量图**、**GIF 动图** 输出和 `complexity` 画面复杂度参数。异步任务模式：提交 → 轮询 → 下载到本地。按分辨率固定价计费。
+通过 Nange AI 的 GPT-Image-2.6-Ext API 生成图片。使用统一模型 `gpt-image-2.6-ext`，通过 `version` 参数选择 Flare（快速出图）或 Sunburst（构图与编辑精度优先）。支持文生图、图生图，并新增 **GIF 动图** 输出（SVG 矢量图上游暂不支持）和 `complexity` 画面复杂度参数。支持 1k / 2k / 4k 分辨率。异步任务模式：提交 → 轮询 → 下载到本地。按分辨率固定价计费。
 
 ## ⚠️ GPT-Image-2.6-Ext 的限制（与 2.5-Ext 不同，必须遵守）
 
 | 项目 | 限制 |
 |---|---|
-| 分辨率 | **仅 1k**，2k / 4k 暂未开放（脚本会直接拒绝） |
+| 分辨率 | `1k`（默认）/ `2k` / `4k`；**2k / 4k 时参考图不能是 GIF / BMP**（脚本会直接拒绝），价格随档位变化，耗时更长 |
 | size | 仅 `auto` 和 10 种比例：`1:1` `3:2` `2:3` `4:3` `3:4` `5:4` `4:5` `16:9` `9:16` `21:9`；**不支持像素尺寸**，也不支持 `2:1` `1:2` `3:1` `1:3` `9:21` |
 | 张数 | 固定 1 张（需要多张请分别调用多次） |
 | 透明背景 | **不支持**（`background` 不生效）。需要透明 PNG / WebP 请改用 `gpt-image-2.5-ext`（images25-gen） |
-| SVG / GIF | 仅支持文生图，**不能带参考图**；GIF 不能指定 size |
-| 价格 | `quality`、输出格式、`complexity`、比例、参考图数量、版本均不影响价格 |
+| SVG | **上游暂不支持**，脚本和网关都会直接拒绝；需要矢量 / 透明 Logo 请改用 `gpt-image-2.5-ext`（images25-gen） |
+| GIF | 仅支持文生图，**不能带参考图**；不能指定 size |
+| 价格 | 只由分辨率档位（1k / 2k / 4k）决定；`quality`、输出格式、`complexity`、比例、参考图数量、版本均不影响价格 |
 
-用户的需求超出上述限制时（4K、超宽比例如 3:1、像素尺寸、透明背景），先告知用户，并建议改用 `gpt-image-2.5-ext`（images25-gen skill），不要强行调用本脚本。
+用户的需求超出上述限制时（超宽比例如 3:1、像素尺寸、透明背景、矢量图），先告知用户，并建议改用 `gpt-image-2.5-ext`（images25-gen skill），不要强行调用本脚本。
 
 ## 前置检查
 
@@ -184,7 +185,7 @@ Favor simplicity over detail so it reads clearly at small and large sizes. Flat 
 Fully transparent background. Deliver a single centered logo with generous padding, clean alpha edges, and no solid backdrop, scenery, checkerboard, or watermark.
 ```
 
-> **Logo 场景建议使用** `--output-format svg`（矢量图，默认透明背景，`--complexity low` 更适合简洁标识）。位图输出（png / jpeg / webp）在 2.6-Ext 上**不支持透明背景**，如必须要透明 PNG / WebP，请改用 `gpt-image-2.5-ext`（images25-gen）。
+> **Logo 场景**：SVG 上游暂不支持，位图输出（png / jpeg / webp）在 2.6-Ext 上**不支持透明背景**。如必须要透明 PNG / WebP，请改用 `gpt-image-2.5-ext`（images25-gen）；不要求透明时可用 `--complexity low` 出简洁标识。
 
 ### 场景 E：利用历史与现实世界知识
 
@@ -297,7 +298,7 @@ Place the [元素] from the second image into the setting of image 1, right next
 
 ### 编辑技巧 5：产品抠图 / 透明背景（本模型不支持）
 
-GPT-Image-2.6-Ext 的 `background` 参数不生效，无法输出带 alpha 通道的透明位图。如果用户要"透明背景"/"抠图"/"PNG 素材"，请告知用户并改用 `gpt-image-2.5-ext`（images25-gen skill，支持 `--background transparent`）；简单图标 / Logo 类需求可以改用 `--output-format svg`（默认透明背景）。
+GPT-Image-2.6-Ext 的 `background` 参数不生效，无法输出带 alpha 通道的透明位图。如果用户要"透明背景"/"抠图"/"PNG 素材"，请告知用户并改用 `gpt-image-2.5-ext`（images25-gen skill，支持 `--background transparent`）；SVG 矢量输出上游暂不支持，不能作为替代方案。
 
 ### 编辑技巧 6：草图转真实图片
 
@@ -402,7 +403,7 @@ Constraints:
 1. ✅ **文字准确性** — 要求的文字拼写正确且清晰可读？图表标签和关系正确？
 2. ✅ **身份/细节保持** — 人物身份、产品形状、标签和参考细节是否完整保留？
 3. ✅ **编辑范围** — 编辑是否只改变了请求的部分？
-4. ✅ **输出格式** — SVG / GIF 是否按预期生成（SVG 为透明背景的矢量图，GIF 为循环动图）？
+4. ✅ **输出格式** — GIF 是否按预期生成（循环动图）？
 
 ---
 
@@ -415,7 +416,7 @@ Constraints:
 1. **补充视觉细节** — 用户说"画只猫"，你要补充品种、毛色、姿势、光线、背景、艺术风格
 2. **结构化组织** — 按场景 → 主体 → 细节 → 约束的顺序组织长 prompt
 3. **明确排除项** — 始终添加 "No watermarks, no extra text, no logos"（除非用户明确要 logo）
-4. **选择正确的参数** — 根据场景自动选择最佳的 version、quality、size（resolution 固定为 1k）
+4. **选择正确的参数** — 根据场景自动选择最佳的 version、quality、size（resolution 默认 1k，有明确高清需求再升 2k / 4k）
 5. **编辑时分离变更和约束** — 明确写出哪些要改、哪些要保持不变
 6. **人物描述要具体** — 补充身体取景、视线、手的动作
 
@@ -476,7 +477,7 @@ node "$SKILL_DIR/scripts/generate.js" \
   --out "./rocket.png"
 ```
 
-**SVG 矢量图（文生图，默认透明背景）：**
+**SVG 矢量图（上游暂不支持，脚本会直接拒绝；以下为上游开放后的预留用法）：**
 ```bash
 node "$SKILL_DIR/scripts/generate.js" \
   --prompt "A minimalist rocket icon in a single line color, flat vector style, no text" \
@@ -521,12 +522,12 @@ GIF 的提示词要描述**动作**以及**如何循环**（回到起始姿势�
 | 用户需求 | 格式 |
 |---|---|
 | 普通图片 | 默认 `png`；要更小体积可用 `jpeg` / `webp` |
-| 图标 / Logo / 简单插画 / 需要无损缩放 | `--output-format svg`（建议配 `--complexity low`） |
+| 图标 / Logo / 简单插画 | 默认 `png` 配 `--complexity low`（SVG 上游暂不支持；要透明背景用 2.5-Ext） |
 | 动图 / 表情包 / 循环动画 | `--output-format gif`（不传 `--size`） |
 
 ### 判断文生图还是图生图
 
-- 用户提供了参考图片（URL、本地文件路径、粘贴的图片）→ **图生图**，通过 `--image-url` 传入（SVG / GIF 不支持）
+- 用户提供了参考图片（URL、本地文件路径、粘贴的图片）→ **图生图**，通过 `--image-url` 传入（GIF 输出不支持；`--resolution 2k/4k` 时参考图不能是 GIF / BMP）
 - 用户只给了文字描述 → **文生图**，不传 `--image-url`
 - 多图编辑时，在 prompt 里用"第一张图"、"第二张图"指代素材，并说明要修改和保留的内容
 
@@ -536,14 +537,14 @@ GIF 的提示词要描述**动作**以及**如何循环**（回到起始姿势�
 - **quality（质量）**：默认 `medium`。"快速"/"低质量" → `low`；"高质量"/"精细" → `high`；"超高清" → `xhigh`；"最高质量" → `max`。质量不影响价格，档位越高耗时越长
 - **size（比例）**：默认 `1:1`。横屏/宽屏 → `16:9`，超宽 → `21:9`，竖屏/手机壁纸 → `9:16`，海报 → `2:3`
 - **complexity（复杂度）**：默认不传（由上游决定）。简洁图标/扁平插画 → `low`；丰富细节 → `high`
-- **resolution（分辨率）**：固定 `1k`，无需传
+- **resolution（分辨率）**：默认 `1k`。用户要"高清"/"2K"→ `--resolution 2k`；"4K"/"超高清大图"/印刷用途 → `--resolution 4k`。价格 1K < 2K < 4K，耗时也更长，没有明确需求不要主动升档
 
 ### 场景 → 参数自动推荐表
 
 | 场景 | size | quality | version | 其他参数 |
 |---|---|---|---|---|
 | 照片级人像/风景 | 2:3 竖 / 3:2 横 | medium 起 | flare | — |
-| Logo/图标 | 1:1 | — | flare | `--output-format svg --complexity low` |
+| Logo/图标 | 1:1 | — | flare | `--complexity low`（要透明背景用 2.5-Ext） |
 | 产品图/商品换背景 | 按原图比例 | high | sunburst | — |
 | 信息图/图解 | 2:3 或 3:4 | high | sunburst | — |
 | 演示文稿/幻灯片 | 16:9 | high | sunburst | — |
@@ -552,24 +553,24 @@ GIF 的提示词要描述**动作**以及**如何循环**（回到起始姿势�
 | 科学教育图 | 3:2 或 16:9 | high | sunburst | — |
 | 节日贺卡 / 商品周边 | 2:3 | medium | flare | — |
 | 动图 / 表情包 | （不传） | medium | flare | `--output-format gif` |
-| 宽屏壁纸 | 16:9 或 21:9 | max | flare | 最高 1k 分辨率；要 4K 请用 2.5-Ext |
+| 宽屏壁纸 | 16:9 或 21:9 | max | flare | `--resolution 4k`（16:9 为 3840×2160） |
 
-### 所有支持的比例及 1K 像素
+### 所有支持的比例及各分辨率像素
 
-| size | 像素 |
-|---|---|
-| `1:1` | 1024×1024 |
-| `3:2` | 1536×1024 |
-| `2:3` | 1024×1536 |
-| `4:3` | 1024×768 |
-| `3:4` | 768×1024 |
-| `5:4` | 1280×1024 |
-| `4:5` | 1024×1280 |
-| `16:9` | 1536×864 |
-| `9:16` | 864×1536 |
-| `21:9` | 2016×864 |
+| size | `1k` | `2k` | `4k` |
+|---|---|---|---|
+| `1:1` | 1024×1024 | 2048×2048 | 2880×2880 |
+| `3:2` | 1536×1024 | 2048×1360 | 3520×2336 |
+| `2:3` | 1024×1536 | 1360×2048 | 2336×3520 |
+| `4:3` | 1024×768 | 2048×1536 | 3312×2480 |
+| `3:4` | 768×1024 | 1536×2048 | 2480×3312 |
+| `5:4` | 1280×1024 | 2560×2048 | 3216×2576 |
+| `4:5` | 1024×1280 | 2048×2560 | 2576×3216 |
+| `16:9` | 1536×864 | 2048×1152 | 3840×2160 |
+| `9:16` | 864×1536 | 1152×2048 | 2160×3840 |
+| `21:9` | 2016×864 | 2688×1152 | 3840×1648 |
 
-`auto` 文生图为 1024×1024；图生图会匹配最接近的比例，不保证与原图像素完全一致。
+`auto` 文生图为 1:1（1k 1024×1024、2k 2048×2048、4k 2880×2880）；图生图会匹配最接近的比例，不保证与原图像素完全一致。
 
 ## 输出
 

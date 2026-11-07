@@ -6,21 +6,22 @@ Uses the unified `gpt-image-2.6-ext` model with a `version` parameter to choose 
 - **flare** (default) — Fast generation, ideal for daily creative work and batch generation
 - **sunburst** — Composition and editing precision, ideal for finished assets, in-image text and fine-tuned edits
 
-New compared with GPT-Image-2.5-Ext: **SVG vector output**, **GIF animation output**, and the `complexity` parameter.
+New compared with GPT-Image-2.5-Ext: **GIF animation output** and the `complexity` parameter (SVG vector output exists in the API but is not supported upstream yet).
 
-Billed at fixed per-resolution prices, same pricing model as GPT-Image-2 / 2.5-Ext. Quality, output format, complexity, aspect ratio, number of reference images and version do **not** change the price.
+Supports **1k / 2k / 4k** resolutions. Billed at fixed per-resolution prices, same pricing model as GPT-Image-2 / 2.5-Ext: the price depends only on the resolution tier. Quality, output format, complexity, aspect ratio, number of reference images and version do **not** change the price.
 
 ## Limitations (read this first)
 
 | Item | Limit |
 |---|---|
-| Resolution | **1k only.** 2k / 4k are not open yet (the script rejects them locally) |
+| Resolution | `1k` (default) / `2k` / `4k`. At 2k / 4k, **reference images cannot be GIF / BMP** (the script rejects them locally); 2k / 4k take longer and cost more |
 | `--size` | `auto` and 10 ratios only: `1:1` `3:2` `2:3` `4:3` `3:4` `5:4` `4:5` `16:9` `9:16` `21:9`. **No pixel sizes**, and no `2:1` `1:2` `3:1` `1:3` `9:21` |
 | Images per request | Exactly 1 |
-| Transparent background | **Not supported** (`background` has no effect). Use [images25-gen](https://github.com/xiaonan0527/images25-gen) if you need transparent PNG / WebP, or `--output-format svg` for simple icons |
-| SVG / GIF | Text-to-image only, no reference images. GIF cannot take a `size` |
+| Transparent background | **Not supported** (`background` has no effect). Use [images25-gen](https://github.com/xiaonan0527/images25-gen) if you need transparent PNG / WebP |
+| SVG | **Not supported upstream yet** — the script and the gateway both reject it. Use images25-gen for transparent logos / icons |
+| GIF | Text-to-image only, no reference images. GIF cannot take a `size` |
 
-If you need 4K, ultra-wide ratios such as 3:1, pixel dimensions, or transparent backgrounds, use `gpt-image-2.5-ext` ([images25-gen](https://github.com/xiaonan0527/images25-gen)).
+If you need ultra-wide ratios such as 3:1, pixel dimensions, or transparent backgrounds, use `gpt-image-2.5-ext` ([images25-gen](https://github.com/xiaonan0527/images25-gen)).
 
 ## Installation
 
@@ -99,8 +100,8 @@ Activate this skill when the user says anything related to AI image generation, 
 | `--quality` | `medium` | Quality: `low`, `medium`, `high`, `xhigh`, `max`, `auto`. Does not affect price; higher tiers take longer |
 | `--complexity` | (none) | `low` (simple icons / flat illustration), `medium`, `high` (rich detail). Does not affect price |
 | `--size` | `1:1` | `auto`, `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `5:4`, `4:5`, `16:9`, `9:16`, `21:9`. Ignored for GIF |
-| `--resolution` | `1k` | Only `1k` is supported |
-| `--output-format` | `png` | `png`, `jpeg`, `webp`, `svg`, `gif` |
+| `--resolution` | `1k` | `1k`, `2k` or `4k`. Price rises with the tier; at 2k / 4k reference images cannot be GIF / BMP |
+| `--output-format` | `png` | `png`, `jpeg`, `webp`, `gif` (`svg` is rejected: not supported upstream yet) |
 | `--svg-model` | (none) | SVG output only: text model used to author the SVG (e.g. `gpt-4.1-mini`). Not billed separately |
 | `--svg-reasoning` | (none) | SVG output only, requires `--svg-model`: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` |
 | `--image-url` | (none) | Reference image for image-to-image. Accepts HTTP URL, base64 data URI, or local file path (auto-converted to base64). Can be passed multiple times (max 16, ≤ 20MB each). PNG / JPEG / WebP / GIF / BMP |
@@ -127,22 +128,22 @@ Both versions currently have the same price. Choose based on speed vs. quality t
 | `max` | Maximum quality |
 | `auto` | Upstream decides at runtime |
 
-### Aspect ratio reference (1K)
+### Aspect ratio reference
 
-| size | pixels |
-|------|--------|
-| 1:1 | 1024×1024 |
-| 3:2 | 1536×1024 |
-| 2:3 | 1024×1536 |
-| 4:3 | 1024×768 |
-| 3:4 | 768×1024 |
-| 5:4 | 1280×1024 |
-| 4:5 | 1024×1280 |
-| 16:9 | 1536×864 |
-| 9:16 | 864×1536 |
-| 21:9 | 2016×864 |
+| size | `1k` | `2k` | `4k` |
+|------|------|------|------|
+| 1:1 | 1024×1024 | 2048×2048 | 2880×2880 |
+| 3:2 | 1536×1024 | 2048×1360 | 3520×2336 |
+| 2:3 | 1024×1536 | 1360×2048 | 2336×3520 |
+| 4:3 | 1024×768 | 2048×1536 | 3312×2480 |
+| 3:4 | 768×1024 | 1536×2048 | 2480×3312 |
+| 5:4 | 1280×1024 | 2560×2048 | 3216×2576 |
+| 4:5 | 1024×1280 | 2048×2560 | 2576×3216 |
+| 16:9 | 1536×864 | 2048×1152 | 3840×2160 |
+| 9:16 | 864×1536 | 1152×2048 | 2160×3840 |
+| 21:9 | 2016×864 | 2688×1152 | 3840×1648 |
 
-`auto` gives 1024×1024 for text-to-image; for image-to-image it picks the closest supported ratio to the first readable reference image.
+`auto` gives a 1:1 image for text-to-image (1024² / 2048² / 2880²); for image-to-image it picks the closest supported ratio to the first readable reference image.
 
 ## How to choose parameters
 
@@ -151,13 +152,16 @@ Both versions currently have the same price. Choose based on speed vs. quality t
 - User wants widescreen → `--size 16:9` (or `21:9` for ultra-wide)
 - User wants portrait/phone wallpaper → `--size 9:16`
 - User wants poster → `--size 2:3`
-- User wants icon / logo / vector → `--output-format svg --complexity low`
+- User wants icon / logo → `--complexity low` (SVG is not supported upstream yet; use images25-gen for transparent backgrounds)
+- User wants high-res / print / wallpaper → `--resolution 2k` or `--resolution 4k` (higher price, slower)
 - User wants animation / sticker pack → `--output-format gif` (no `--size`)
 - User says "超高质量" → `--quality xhigh` or `--quality max`
-- User says "4K" / "透明背景" / "像素尺寸" → not supported here, suggest images25-gen
+- User says "透明背景" / "像素尺寸" / "矢量图" → not supported here, suggest images25-gen
 - No preference → use defaults (`flare`, `medium`, `1:1`, `1k`)
 
 ## SVG vector output
+
+> **Currently unavailable**: the upstream does not support SVG output yet, so the script rejects `--output-format svg`. The usage below is kept for when upstream enables it (flip `SVG_SUPPORTED` in `scripts/generate.js`).
 
 ```bash
 node "<skill-dir>/scripts/generate.js" \
@@ -209,9 +213,9 @@ node "<skill-dir>/scripts/generate.js" \
 |---|---|---|
 | Model | `gpt-image-2.5-ext` | `gpt-image-2.6-ext` |
 | Version selection | `--version flare` / `--version sunburst` | Same |
-| Resolution | `1k` / `2k` / `4k` | `1k` only (for now) |
+| Resolution | `1k` / `2k` / `4k` | Same (2k / 4k: no GIF / BMP reference images) |
 | Size input | Ratios + pixel dimensions | `auto` + 10 ratios only |
-| Output format | `png`, `jpeg`, `webp` | Adds `svg`, `gif` |
+| Output format | `png`, `jpeg`, `webp` | Adds `gif` (`svg` not supported upstream yet) |
 | Complexity | N/A | `--complexity` |
 | Transparent background | `--background transparent` | Not supported |
 | Reference image formats | PNG / JPEG / WebP / GIF | Adds BMP |
